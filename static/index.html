@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>我的書庫</title>
+<style>
+  :root { --bg:#f6f4ef; --card:#fff; --ink:#2b2b2b; --muted:#777; --accent:#8a5a2b; --line:#e2ddd3; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Microsoft JhengHei", system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { position:sticky; top:0; z-index:5; background:var(--bg); border-bottom:1px solid var(--line);
+           padding:12px 20px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  h1 { font-size:20px; margin:0 12px 0 0; }
+  input[type=search], select { padding:7px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fff; }
+  input[type=search] { flex:1; min-width:180px; }
+  button { padding:7px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; font:inherit; cursor:pointer; }
+  button:hover { border-color:var(--accent); color:var(--accent); }
+  #tagbar { padding:10px 20px 0; display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:#fff; font-size:13px; cursor:pointer; }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { padding:8px 20px 0; color:var(--muted); font-size:13px; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:18px; padding:16px 20px 40px; }
+  .card { background:var(--card); border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; display:flex; flex-direction:column; }
+  .cover { aspect-ratio:2/3; background:#ddd5c6; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; }
+  .cover img { width:100%; height:100%; object-fit:cover; }
+  .cover .ph { padding:10px; text-align:center; color:#5b4a35; font-size:14px; word-break:break-all; }
+  .badge { position:absolute; top:6px; left:6px; background:rgba(0,0,0,.6); color:#fff; font-size:11px; padding:1px 6px; border-radius:4px; text-transform:uppercase; }
+  .bar { height:4px; background:#eee; } .bar > div { height:100%; background:var(--accent); }
+  .info { padding:8px; font-size:13px; flex:1; display:flex; flex-direction:column; gap:4px; }
+  .fname { font-weight:bold; word-break:break-all; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .sub { color:var(--muted); font-size:12px; }
+  .tags span { display:inline-block; background:#f1ebe0; border-radius:4px; padding:0 5px; margin:1px 2px 0 0; font-size:11px; }
+  .actions { display:flex; gap:4px; margin-top:auto; padding-top:4px; }
+  .actions button { flex:1; padding:3px; font-size:12px; }
+  dialog { border:none; border-radius:10px; padding:20px; width:min(520px, 92vw); }
+  dialog h2 { margin-top:0; font-size:17px; }
+  dialog ul { padding:0; list-style:none; } dialog li { display:flex; justify-content:space-between; gap:8px; padding:4px 0; word-break:break-all; }
+  dialog input[type=text] { width:100%; padding:7px; font:inherit; border:1px solid var(--line); border-radius:6px; }
+  .row { display:flex; gap:8px; margin-top:10px; justify-content:flex-end; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 我的書庫</h1>
+  <input type="search" id="q" placeholder="搜尋檔名、書名、作者…">
+  <select id="sort">
+    <option value="recent">最近閱讀</option>
+    <option value="filename">檔名</option>
+    <option value="title">書名</option>
+    <option value="added">加入時間</option>
+    <option value="progress">閱讀進度</option>
+  </select>
+  <button id="btnUpload">上傳</button>
+  <input type="file" id="file" multiple accept=".epub,.kepub,.pdf,.txt" hidden>
+  <button id="btnScan">重新掃描</button>
+  <button id="btnFolders">資料夾設定</button>
+</header>
+<div id="tagbar"></div>
+<div id="status"></div>
+<div id="grid"></div>
+
+<dialog id="dlgFolders">
+  <h2>掃描資料夾</h2>
+  <ul id="folderList"></ul>
+  <input type="text" id="folderInput" placeholder="例如 D:\091\電子書">
+  <div class="row"><button id="btnAddFolder">新增並掃描</button><button onclick="dlgFolders.close()">關閉</button></div>
+</dialog>
+
+<dialog id="dlgTags">
+  <h2>編輯標籤</h2>
+  <p class="sub" id="tagBookName"></p>
+  <input type="text" id="tagInput" placeholder="以逗號分隔，例如：小說, 推理">
+  <div class="row"><button id="btnSaveTags">儲存</button><button onclick="dlgTags.close()">取消</button></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+let books = [], activeTag = null, editingId = null;
+
+async function api(url, opts = {}) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+  return res.json();
+}
+const json = (method, body) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function load() {
+  books = await api("/api/books");
+  render();
+}
+
+function render() {
+  const allTags = [...new Set(books.flatMap(b => b.tags))].sort();
+  if (activeTag && !allTags.includes(activeTag)) activeTag = null;
+  $("#tagbar").innerHTML = allTags.length
+    ? [`<span class="chip ${activeTag ? "" : "on"}" data-tag="">全部</span>`,
+       ...allTags.map(t => `<span class="chip ${t === activeTag ? "on" : ""}" data-tag="${esc(t)}">${esc(t)}</span>`)].join("")
+    : "";
+
+  const q = $("#q").value.trim().toLowerCase();
+  let list = books.filter(b =>
+    (!activeTag || b.tags.includes(activeTag)) &&
+    (!q || [b.filename, b.title, b.author, b.folder].some(s => (s || "").toLowerCase().includes(q))));
+
+  const cmp = {
+    recent: (a, b) => (b.last_read || 0) - (a.last_read || 0) || a.filename.localeCompare(b.filename, "zh-Hant"),
+    filename: (a, b) => a.filename.localeCompare(b.filename, "zh-Hant"),
+    title: (a, b) => (a.title || a.filename).localeCompare(b.title || b.filename, "zh-Hant"),
+    added: (a, b) => b.added_at - a.added_at,
+    progress: (a, b) => b.progress - a.progress,
+  }[$("#sort").value];
+  list.sort(cmp);
+
+  $("#status").textContent = `共 ${list.length} 本` + (list.length !== books.length ? `（書庫總計 ${books.length} 本）` : "");
+  $("#grid").innerHTML = list.map(b => {
+    const pct = Math.round(b.progress * 100);
+    const state = !b.last_read ? "未讀" : pct >= 99 ? "已讀完" : `已讀 ${pct}%`;
+    return `<div class="card">
+      <div class="cover" data-open="${b.id}" title="${esc(b.filename)}">
+        ${b.has_cover ? `<img loading="lazy" src="/api/books/${b.id}/cover" alt="">` : `<div class="ph">${esc(b.title || b.filename)}</div>`}
+        <span class="badge">${b.fmt}</span>
+      </div>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      <div class="info">
+        <div class="fname">${esc(b.filename)}</div>
+        ${b.title && b.title !== b.filename ? `<div class="sub">${esc(b.title)}${b.author ? "／" + esc(b.author) : ""}</div>` : ""}
+        <div class="sub" title="${esc(b.path)}">📁 ${esc(b.folder)}</div>
+        <div class="sub">${state}</div>
+        <div class="tags">${b.tags.map(t => `<span>${esc(t)}</span>`).join("")}</div>
+        <div class="actions"><button data-tags="${b.id}">標籤</button><button data-remove="${b.id}">移除</button></div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+$("#tagbar").onclick = e => { const t = e.target.dataset.tag; if (t !== undefined) { activeTag = t || null; render(); } };
+$("#q").oninput = render;
+$("#sort").onchange = () => { localStorage.setItem("sort", $("#sort").value); render(); };
+try { $("#sort").value = localStorage.getItem("sort") || "recent"; } catch {}
+
+$("#grid").onclick = async e => {
+  const el = e.target.closest("[data-open],[data-tags],[data-remove]");
+  if (!el) return;
+  if (el.dataset.open) location.href = `/reader.html?id=${el.dataset.open}`;
+  if (el.dataset.tags) {
+    const b = books.find(x => x.id == el.dataset.tags);
+    editingId = b.id;
+    $("#tagBookName").textContent = b.filename;
+    $("#tagInput").value = b.tags.join(", ");
+    dlgTags.showModal();
+  }
+  if (el.dataset.remove) {
+    const b = books.find(x => x.id == el.dataset.remove);
+    if (!confirm(`從書庫移除「${b.filename}」？\n（掃描資料夾中的原始檔不會被刪除）`)) return;
+    await api(`/api/books/${b.id}`, { method: "DELETE" });
+    load();
+  }
+};
+
+$("#btnSaveTags").onclick = async () => {
+  const tags = $("#tagInput").value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+  await api(`/api/books/${editingId}/tags`, json("PUT", { tags }));
+  dlgTags.close();
+  load();
+};
+
+async function withStatus(msg, fn) {
+  $("#status").textContent = msg;
+  try {
+    const r = await fn();
+    await load();
+    $("#status").textContent += `　｜　新增 ${r.added} 本` + (r.skipped?.length ? `，略過不支援的檔案：${r.skipped.join("、")}` : "");
+  } catch (err) { alert(err.message); load(); }
+}
+
+$("#btnScan").onclick = () => withStatus("掃描中…", () => api("/api/scan", { method: "POST" }));
+$("#btnUpload").onclick = () => $("#file").click();
+$("#file").onchange = () => {
+  const fd = new FormData();
+  for (const f of $("#file").files) fd.append("files", f);
+  $("#file").value = "";
+  withStatus("上傳中…", () => api("/api/upload", { method: "POST", body: fd }));
+};
+
+async function loadFolders() {
+  const folders = await api("/api/folders");
+  $("#folderList").innerHTML = folders.map(f =>
+    `<li><span>${esc(f)}</span><button data-path="${esc(f)}">移除</button></li>`).join("") || "<li>（尚未設定）</li>";
+}
+$("#btnFolders").onclick = () => { loadFolders(); dlgFolders.showModal(); };
+$("#btnAddFolder").onclick = async () => {
+  const path = $("#folderInput").value.trim();
+  if (!path) return;
+  try {
+    await api("/api/folders", json("POST", { path }));
+    $("#folderInput").value = "";
+    loadFolders(); load();
+  } catch (err) { alert(err.message); }
+};
+$("#folderList").onclick = async e => {
+  const path = e.target.dataset.path;
+  if (!path || !confirm(`不再掃描「${path}」？\n其中的書會從書庫清單消失（原始檔不受影響）。`)) return;
+  await api("/api/folders", json("DELETE", { path }));
+  loadFolders(); load();
+};
+
+load();
+</script>
+</body>
+</html>

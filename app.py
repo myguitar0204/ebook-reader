@@ -3,6 +3,7 @@
 import argparse
 import posixpath
 import sqlite3
+import sys
 import time
 import webbrowser
 import xml.etree.ElementTree as ET
@@ -17,12 +18,15 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-BASE = Path(__file__).parent
+# 打包成 exe 時：網頁在解壓出的 bundle 內，資料與上傳的書放在 exe 旁邊
+FROZEN = getattr(sys, "frozen", False)
+BASE = Path(sys.executable).parent if FROZEN else Path(__file__).parent
+STATIC = Path(sys._MEIPASS) / "static" if FROZEN else BASE / "static"
 DATA = BASE / "data"
 COVERS = DATA / "covers"
 UPLOADS = BASE / "books"
 DB_PATH = DATA / "library.db"
-DEFAULT_FOLDER = r"D:\091\電子書"
+DEFAULT_FOLDER = None if FROZEN else r"D:\091\電子書"  # 打包版給別人用，由對方自行設定資料夾
 
 # 副檔名 → 閱讀格式（kepub 是 Kobo 版 epub，可直接用 epub 方式開）
 FORMATS = {".epub": "epub", ".kepub": "epub", ".pdf": "pdf", ".txt": "txt"}
@@ -72,7 +76,7 @@ def init_db() -> None:
     UPLOADS.mkdir(exist_ok=True)
     with db() as conn:
         conn.executescript(SCHEMA)
-        if conn.execute("SELECT COUNT(*) FROM folders").fetchone()[0] == 0:
+        if DEFAULT_FOLDER and conn.execute("SELECT COUNT(*) FROM folders").fetchone()[0] == 0:
             conn.execute("INSERT INTO folders VALUES (?)", (DEFAULT_FOLDER,))
 
 
@@ -324,7 +328,7 @@ async def upload(files: list[UploadFile] = File(...)):
     return {**scan(), "skipped": skipped}
 
 
-app.mount("/", StaticFiles(directory=BASE / "static", html=True), name="static")
+app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")
 
 
 if __name__ == "__main__":

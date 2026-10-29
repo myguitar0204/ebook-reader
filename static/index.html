@@ -62,7 +62,7 @@
 <dialog id="dlgFolders">
   <h2>掃描資料夾</h2>
   <ul id="folderList"></ul>
-  <input type="text" id="folderInput" placeholder="例如 D:\091\電子書">
+  <input type="text" id="folderInput" placeholder="貼上資料夾路徑，例如 D:\電子書">
   <div class="row"><button id="btnAddFolder">新增並掃描</button><button onclick="dlgFolders.close()">關閉</button></div>
 </dialog>
 
@@ -205,7 +205,7 @@ $("#folderList").onclick = async e => {
   loadFolders(); load();
 };
 
-load();
+load().then(() => { if (!books.length) $("#btnFolders").click(); });  // 書庫空的（例如第一次啟動）時直接引導設定資料夾
 </script>
 </body>
 </html>

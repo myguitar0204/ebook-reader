@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>閱讀</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- 函式庫放在本機（離線也能用）：jszip 3.10.1、epubjs 0.3.93、pdf.js 3.11.174 -->
+<script src="/vendor/jszip.min.js"></script>
+<script src="/vendor/epub.min.js"></script>
+<script src="/vendor/pdf.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   [hidden] { display:none !important; }
@@ -101,6 +102,17 @@ function showPane(sel) {
 }
 
 // ---------- EPUB ----------
+// 有些直排書只在 <body> 設 writing-mode，epub.js 只看 <html> 而誤判成橫排，
+// 整章被壓成一頁（其餘內容被裁掉），翻一次就跳到下一章；改把直排設定提到 <html>
+const htmlWritingMode = ePub.Contents.prototype.writingMode;
+ePub.Contents.prototype.writingMode = function (mode) {
+  if (!mode && this.document?.body) {
+    const body = this.window.getComputedStyle(this.document.body).writingMode;
+    if (body.startsWith("vertical") && !htmlWritingMode.call(this).startsWith("vertical")) mode = body;
+  }
+  return htmlWritingMode.call(this, mode);
+};
+
 async function openEpub(book) {
   const buf = await (await fetch(`/api/books/${id}/file`)).arrayBuffer();
   const ebook = ePub(buf);
@@ -123,7 +135,11 @@ async function openEpub(book) {
   });
 
   await rendition.display(book.position || undefined);
-  reader = { prev: () => rendition.prev(), next: () => rendition.next() };
+  reader = {
+    prev: () => rendition.prev(), next: () => rendition.next(),
+    page: $("#epub"),
+    atEdge: forward => !!rendition.currentLocation()?.[forward ? "atEnd" : "atStart"],
+  };
   rendition.on("keyup", onKey);
   setupDir(ebook.package.metadata.direction === "rtl");
   $("#left").hidden = $("#right").hidden = false;
@@ -161,8 +177,9 @@ async function openEpub(book) {
 
 // ---------- PDF ----------
 async function openPdf(book) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  const doc = await pdfjsLib.getDocument(`/api/books/${id}/file`).promise;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/vendor/pdf.worker.min.js";
+  // 未嵌入字型的中日韓 PDF 需要 CMap 才能顯示文字
+  const doc = await pdfjsLib.getDocument({ url: `/api/books/${id}/file`, cMapUrl: "/vendor/cmaps/", cMapPacked: true }).promise;
   showPane("#pdf");
   const canvas = $("#canvas"), box = $("#pdf");
   let page = Math.min(doc.numPages, Math.max(1, parseInt(book.position) || 1));
@@ -187,11 +204,17 @@ async function openPdf(book) {
 
   function go(n) {
     if (n < 1 || n > doc.numPages) return;
-    page = n; sel.value = page; box.scrollTop = 0; draw();
+    page = n; sel.value = page; box.scrollTop = 0;
+    const drawn = draw();
     showChapter(page);
     saveProgress(page, doc.numPages === 1 ? 1 : (page - 1) / (doc.numPages - 1));
+    return drawn;
   }
-  reader = { prev: () => go(page - 1), next: () => go(page + 1) };
+  reader = {
+    prev: () => go(page - 1), next: () => go(page + 1),
+    page: canvas,
+    atEdge: forward => forward ? page >= doc.numPages : page <= 1,
+  };
   setupDir(false);
 
   $("#left").hidden = $("#right").hidden = false;
@@ -242,15 +265,46 @@ function setupDir(def) {
   $("#dir").hidden = false;
   show();
 }
-const goLeft = () => leftNext ? reader.next() : reader.prev();
-const goRight = () => leftNext ? reader.prev() : reader.next();
+// 翻頁動畫：往後翻時目前頁沿書脊翻走，往前翻時前一頁從書脊翻回來。
+// 換頁（epub.js / pdf.js 的繪製）一定在兩段動畫之間完成，不能放進 View Transition 的
+// callback：瀏覽器在 callback 期間暫停畫面更新，兩者的繪製都要等畫面更新才會完成，會互卡到逾時。
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let turning = Promise.resolve();
+function turn(forward) {
+  turning = turning.then(() => animateTurn(forward)).catch(console.error);  // 連按時依序播放，不重疊
+}
+async function animateTurn(forward) {
+  const act = () => forward ? reader.next() : reader.prev();
+  const el = reader.page;
+  if (!el || reduceMotion || reader.atEdge(forward)) return act();
+  const flat = { transform: "perspective(1800px) rotateY(0deg)", filter: "brightness(1)" };
+  // 頁面外緣往畫面深處轉（不往使用者方向轉），否則寬頁面在透視下會被放大而超出版面
+  const away = { transform: `perspective(1800px) rotateY(${leftNext ? -90 : 90}deg)`, filter: "brightness(.6)" };
+  el.style.transformOrigin = (leftNext ? "right" : "left") + " center";  // 書脊那一側
+  if (forward) {
+    const out = el.animate([flat, away], { duration: 260, easing: "ease-in", fill: "forwards" });
+    await out.finished;
+    await act();
+    out.cancel();
+    await el.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 140 }).finished;
+  } else {
+    const fade = el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: "forwards" });
+    await fade.finished;
+    await act();
+    const back = el.animate([away, flat], { duration: 300, easing: "ease-out", fill: "backwards" });
+    fade.cancel();
+    await back.finished;
+  }
+}
+const goLeft = () => turn(leftNext);
+const goRight = () => turn(!leftNext);
 
 function onKey(e) {
   if (!reader) return;
   if (e.key === "ArrowLeft") goLeft();
   if (e.key === "ArrowRight") goRight();
-  if (e.key === "PageUp") reader.prev();
-  if (e.key === "PageDown" || e.key === " ") { e.preventDefault?.(); reader.next(); }
+  if (e.key === "PageUp") turn(false);
+  if (e.key === "PageDown" || e.key === " ") { e.preventDefault?.(); turn(true); }
 }
 document.addEventListener("keydown", onKey);
 $("#left").onclick = () => reader && goLeft();

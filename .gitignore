@@ -3,3 +3,7 @@ __pycache__/
 # 書庫資料與上傳的書（含版權內容與個人閱讀紀錄）
 data/
 books/
+# PyInstaller 建置產物、Playwright 測試紀錄
+build/
+dist/
+.playwright-mcp/

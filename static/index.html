@@ -43,6 +43,12 @@
 <header>
   <h1>📚 我的書庫</h1>
   <input type="search" id="q" placeholder="搜尋檔名、書名、作者…">
+  <select id="fmt">
+    <option value="">全部格式</option>
+    <option value="epub">EPUB</option>
+    <option value="pdf">PDF</option>
+    <option value="txt">TXT</option>
+  </select>
   <select id="sort">
     <option value="recent">最近閱讀</option>
     <option value="filename">檔名</option>
@@ -99,7 +105,9 @@ function render() {
     : "";
 
   const q = $("#q").value.trim().toLowerCase();
+  const fmt = $("#fmt").value;
   let list = books.filter(b =>
+    (!fmt || b.fmt === fmt) &&
     (!activeTag || b.tags.includes(activeTag)) &&
     (!q || [b.filename, b.title, b.author, b.folder].some(s => (s || "").toLowerCase().includes(q))));
 
@@ -138,6 +146,8 @@ $("#tagbar").onclick = e => { const t = e.target.dataset.tag; if (t !== undefine
 $("#q").oninput = render;
 $("#sort").onchange = () => { localStorage.setItem("sort", $("#sort").value); render(); };
 try { $("#sort").value = localStorage.getItem("sort") || "recent"; } catch {}
+$("#fmt").onchange = () => { localStorage.setItem("fmt", $("#fmt").value); render(); };
+try { $("#fmt").value = localStorage.getItem("fmt") || ""; } catch {}
 
 $("#grid").onclick = async e => {
   const el = e.target.closest("[data-open],[data-tags],[data-remove]");

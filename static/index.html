@@ -49,6 +49,11 @@
     <option value="pdf">PDF</option>
     <option value="txt">TXT</option>
   </select>
+  <select id="done">
+    <option value="">全部狀態</option>
+    <option value="yes">已閱讀</option>
+    <option value="no">尚未閱讀</option>
+  </select>
   <select id="sort">
     <option value="recent">最近閱讀</option>
     <option value="filename">檔名</option>
@@ -82,6 +87,7 @@
 <script>
 const $ = s => document.querySelector(s);
 let books = [], activeTag = null, editingId = null;
+const DONE = "閱讀完畢";  // 以一般標籤儲存，篩選列會自動出現
 
 async function api(url, opts = {}) {
   const res = await fetch(url, opts);
@@ -106,8 +112,10 @@ function render() {
 
   const q = $("#q").value.trim().toLowerCase();
   const fmt = $("#fmt").value;
+  const doneSel = $("#done").value;
   let list = books.filter(b =>
     (!fmt || b.fmt === fmt) &&
+    (!doneSel || b.tags.includes(DONE) === (doneSel === "yes")) &&
     (!activeTag || b.tags.includes(activeTag)) &&
     (!q || [b.filename, b.title, b.author, b.folder].some(s => (s || "").toLowerCase().includes(q))));
 
@@ -123,7 +131,8 @@ function render() {
   $("#status").textContent = `共 ${list.length} 本` + (list.length !== books.length ? `（書庫總計 ${books.length} 本）` : "");
   $("#grid").innerHTML = list.map(b => {
     const pct = Math.round(b.progress * 100);
-    const state = !b.last_read ? "未讀" : pct >= 99 ? "已讀完" : `已讀 ${pct}%`;
+    const done = b.tags.includes(DONE);
+    const state = done ? "✅ 閱讀完畢" : !b.last_read ? "未讀" : pct >= 99 ? "已讀完" : `已讀 ${pct}%`;
     return `<div class="card">
       <div class="cover" data-open="${b.id}" title="${esc(b.filename)}">
         ${b.has_cover ? `<img loading="lazy" src="/api/books/${b.id}/cover" alt="">` : `<div class="ph">${esc(b.title || b.filename)}</div>`}
@@ -136,7 +145,7 @@ function render() {
         <div class="sub" title="${esc(b.path)}">📁 ${esc(b.folder)}</div>
         <div class="sub">${state}</div>
         <div class="tags">${b.tags.map(t => `<span>${esc(t)}</span>`).join("")}</div>
-        <div class="actions"><button data-tags="${b.id}">標籤</button><button data-remove="${b.id}">移除</button></div>
+        <div class="actions"><button data-done="${b.id}" title="${done ? "取消閱讀完畢" : "標記為閱讀完畢"}">${done ? "取消完讀" : "完讀"}</button><button data-tags="${b.id}">標籤</button><button data-remove="${b.id}">移除</button></div>
       </div>
     </div>`;
   }).join("");
@@ -148,11 +157,19 @@ $("#sort").onchange = () => { localStorage.setItem("sort", $("#sort").value); re
 try { $("#sort").value = localStorage.getItem("sort") || "recent"; } catch {}
 $("#fmt").onchange = () => { localStorage.setItem("fmt", $("#fmt").value); render(); };
 try { $("#fmt").value = localStorage.getItem("fmt") || ""; } catch {}
+$("#done").onchange = () => { localStorage.setItem("done", $("#done").value); render(); };
+try { $("#done").value = localStorage.getItem("done") || ""; } catch {}
 
 $("#grid").onclick = async e => {
-  const el = e.target.closest("[data-open],[data-tags],[data-remove]");
+  const el = e.target.closest("[data-open],[data-done],[data-tags],[data-remove]");
   if (!el) return;
   if (el.dataset.open) location.href = `/reader.html?id=${el.dataset.open}`;
+  if (el.dataset.done) {
+    const b = books.find(x => x.id == el.dataset.done);
+    const tags = b.tags.includes(DONE) ? b.tags.filter(t => t !== DONE) : [...b.tags, DONE];
+    await api(`/api/books/${b.id}/tags`, json("PUT", { tags }));
+    load();
+  }
   if (el.dataset.tags) {
     const b = books.find(x => x.id == el.dataset.tags);
     editingId = b.id;

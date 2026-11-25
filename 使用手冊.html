@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>電子書閱讀器 使用手冊</title>
+<style>
+  :root { --ink:#2b2b2b; --muted:#666; --accent:#8a5a2b; --line:#e2ddd3; --soft:#f6f4ef; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--ink); font:16px/1.75 "Microsoft JhengHei", system-ui, sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:32px 20px 60px; }
+  h1 { font-size:28px; margin:0 0 4px; }
+  h2 { font-size:21px; margin:40px 0 10px; padding-bottom:6px; border-bottom:2px solid var(--line); color:var(--accent); }
+  h3 { font-size:17px; margin:24px 0 6px; }
+  .sub { color:var(--muted); margin:0 0 24px; }
+  nav { background:var(--soft); border-radius:8px; padding:12px 20px; }
+  nav ol { margin:0; padding-left:20px; columns:2; }
+  nav a { color:var(--ink); }
+  table { border-collapse:collapse; width:100%; margin:8px 0; font-size:15px; }
+  th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--soft); white-space:nowrap; }
+  kbd { display:inline-block; border:1px solid #bbb; border-bottom-width:2px; border-radius:4px; padding:0 6px; font:13px/1.6 Consolas, monospace; background:#fafafa; }
+  code { background:var(--soft); border-radius:4px; padding:1px 5px; font-family:Consolas, monospace; font-size:14px; }
+  .tip { background:#fbf6ee; border-left:4px solid var(--accent); padding:10px 14px; border-radius:0 6px 6px 0; margin:12px 0; }
+  .steps li { margin:6px 0; }
+  @media (max-width:600px) { nav ol { columns:1; } }
+  @media print { nav { display:none; } h2 { break-after:avoid; } }
+</style>
+</head>
+<body>
+<main>
+<h1>📚 電子書閱讀器 使用手冊</h1>
+<p class="sub">可攜版．離線使用，不需安裝</p>
+
+<nav>
+<ol>
+  <li><a href="#start">快速開始</a></li>
+  <li><a href="#library">書庫</a></li>
+  <li><a href="#add">加入書籍</a></li>
+  <li><a href="#organize">整理書籍</a></li>
+  <li><a href="#read">閱讀</a></li>
+  <li><a href="#keys">鍵盤操作</a></li>
+  <li><a href="#data">資料保存與搬移</a></li>
+  <li><a href="#faq">常見問題</a></li>
+</ol>
+</nav>
+
+<h2 id="start">1. 快速開始</h2>
+<ol class="steps">
+  <li>把收到的壓縮檔<b>整個解壓縮</b>到任意位置（例如 <code>D:\ebook-reader-portable</code>）。不要在壓縮檔裡直接執行。</li>
+  <li>雙擊資料夾中的 <code>start.bat</code>。會出現一個黑色命令視窗，接著瀏覽器自動開啟書庫頁面。</li>
+  <li>第一次使用時書庫是空的，會自動跳出「資料夾設定」，貼上你放電子書的資料夾路徑，按「新增並掃描」。</li>
+  <li>點書的封面就能開始閱讀。</li>
+</ol>
+<div class="tip">
+  <b>黑色命令視窗就是程式本體</b>：閱讀期間請保留它（可以縮到最小）。要結束程式時直接關掉這個視窗。<br>
+  瀏覽器若沒有自動開啟，請手動開瀏覽器並輸入 <code>http://127.0.0.1:8000/</code>。
+</div>
+<p>支援格式：<b>EPUB</b>、<b>KEPUB</b>（Kobo 格式）、<b>PDF</b>、<b>TXT</b>。</p>
+
+<h2 id="library">2. 書庫</h2>
+<p>書庫以封面方格列出所有書籍，每本書的卡片顯示檔名、書名／作者、所在資料夾、閱讀狀態與進度條。</p>
+<table>
+  <tr><th>功能</th><th>說明</th></tr>
+  <tr><td>搜尋</td><td>輸入關鍵字，可比對檔名、書名、作者、資料夾名稱，邊打邊篩選。</td></tr>
+  <tr><td>格式篩選</td><td>只顯示 EPUB、PDF 或 TXT。</td></tr>
+  <tr><td>閱讀狀態</td><td>「已閱讀」只顯示標記為閱讀完畢的書；「尚未閱讀」顯示其餘的書。</td></tr>
+  <tr><td>排序</td><td>最近閱讀、檔名、書名、加入時間、閱讀進度。</td></tr>
+  <tr><td>標籤列</td><td>搜尋列下方會列出所有用過的標籤，點一下只顯示該標籤的書，點「全部」取消。</td></tr>
+</table>
+<p>格式、閱讀狀態與排序的選擇會被記住，下次開啟維持相同設定。</p>
+
+<h2 id="add">3. 加入書籍</h2>
+<h3>方法一：設定掃描資料夾（建議）</h3>
+<ol class="steps">
+  <li>按右上角「資料夾設定」。</li>
+  <li>貼上資料夾路徑，例如 <code>D:\電子書</code>，按「新增並掃描」。子資料夾裡的書也會一併加入。</li>
+  <li>之後在資料夾裡新增或刪除書籍，按「重新掃描」即可更新書庫。每次啟動程式時也會自動掃描一次。</li>
+</ol>
+<p>可以設定多個資料夾。在資料夾設定中按某個資料夾旁的「移除」，就不再掃描它（原始檔案不會被刪除）。</p>
+<div class="tip">取得資料夾路徑的方法：在檔案總管開啟該資料夾，點上方網址列，路徑會反白，按 <kbd>Ctrl</kbd>+<kbd>C</kbd> 複製。</div>
+
+<h3>方法二：上傳</h3>
+<p>按「上傳」選擇檔案（可一次選多個）。上傳的書會<b>複製一份</b>到程式資料夾的 <code>books\</code> 中，原檔可以刪掉或搬走。</p>
+
+<h2 id="organize">4. 整理書籍</h2>
+<table>
+  <tr><th>按鈕</th><th>說明</th></tr>
+  <tr><td>完讀</td><td>標記這本書已閱讀完畢，卡片會顯示「✅ 閱讀完畢」；再按「取消完讀」可取消。</td></tr>
+  <tr><td>標籤</td><td>為書加上自訂分類，多個標籤用逗號分隔，例如 <code>小說, 推理</code>。清空後儲存即移除所有標籤。</td></tr>
+  <tr><td>移除</td><td>從書庫移除這本書。<br>・掃描資料夾中的書：只是不再顯示，<b>原始檔案不會被刪除</b>，重新掃描也不會再出現。<br>・用「上傳」加入的書：會連同 <code>books\</code> 裡的副本一起刪除。</td></tr>
+</table>
+<p>「閱讀完畢」本身也是一個標籤，所以標籤列也能用它篩選。卡片上的「已讀 xx%」是自動記錄的閱讀進度，與「完讀」標記無關。</p>
+
+<h2 id="read">5. 閱讀</h2>
+<p>點封面進入閱讀頁。程式會自動記住讀到哪裡，下次開啟同一本書時從上次的位置繼續。</p>
+
+<h3>上方工具列</h3>
+<table>
+  <tr><th>項目</th><th>說明</th></tr>
+  <tr><td>← 書庫</td><td>回到書庫。</td></tr>
+  <tr><td>目錄（EPUB）</td><td>下拉選單選擇章節直接跳過去。書本身沒有目錄時不顯示。</td></tr>
+  <tr><td>頁碼選單（PDF）</td><td>下拉選擇任一頁直接跳過去。</td></tr>
+  <tr><td>翻頁方向</td><td>切換「向右翻頁 →」或「← 向左翻頁」。直排的中文書通常是向左翻。每本書各自記住。</td></tr>
+  <tr><td>A− / A＋</td><td>EPUB、TXT 調整字級；PDF 調整頁面縮放。</td></tr>
+  <tr><td>空白− / 空白＋</td><td>EPUB、TXT 調整左右留白，讓文字往中間集中，寬螢幕閱讀較舒適。</td></tr>
+  <tr><td>百分比</td><td>整本書的閱讀進度。EPUB 第一次開啟時需要計算一下才會出現。</td></tr>
+</table>
+
+<h3>畫面其他資訊</h3>
+<ul>
+  <li><b>目前章節</b>：顯示在工具列下方（書有目錄或書籤時才有）。</li>
+  <li><b>頁碼</b>：顯示在畫面底部。EPUB 顯示的是「本章」的第幾頁／共幾頁；PDF 是實際頁碼；TXT 以一個畫面為一頁。</li>
+  <li><b>翻頁</b>：點畫面左右兩側的 ‹ › 按鈕，或使用鍵盤（見下節）。</li>
+</ul>
+
+<h2 id="keys">6. 鍵盤操作</h2>
+<table>
+  <tr><th>按鍵</th><th>動作</th></tr>
+  <tr><td><kbd>→</kbd> / <kbd>←</kbd></td><td>往右／往左翻頁（實際是上一頁或下一頁，依「翻頁方向」設定而定）</td></tr>
+  <tr><td><kbd>PageDown</kbd>、<kbd>空白鍵</kbd></td><td>下一頁（固定，不受翻頁方向影響）</td></tr>
+  <tr><td><kbd>PageUp</kbd></td><td>上一頁（固定）</td></tr>
+</table>
+<p>TXT 是上下捲動閱讀，也可以直接用滑鼠滾輪。</p>
+
+<h2 id="data">7. 資料保存與搬移</h2>
+<p>所有資料都存在程式資料夾內，不會寫到電腦的其他地方：</p>
+<table>
+  <tr><th>位置</th><th>內容</th></tr>
+  <tr><td><code>data\</code></td><td>書庫清單、閱讀進度、標籤、封面縮圖。</td></tr>
+  <tr><td><code>books\</code></td><td>用「上傳」加入的書。</td></tr>
+</table>
+<ul>
+  <li><b>搬到別台電腦</b>：把整個程式資料夾複製過去即可，閱讀進度與標籤都會保留。掃描資料夾的路徑若在新電腦上不同，請到「資料夾設定」重新設定。</li>
+  <li><b>備份</b>：複製 <code>data\</code> 與 <code>books\</code> 兩個資料夾。</li>
+  <li><b>重設書庫</b>：關閉程式後刪除 <code>data\</code> 資料夾，下次啟動即為全新書庫（不影響電子書原始檔）。</li>
+  <li>字級、留白、翻頁方向等閱讀偏好存在瀏覽器中，換瀏覽器或清除瀏覽資料後會恢復預設值。</li>
+</ul>
+
+<h2 id="faq">8. 常見問題</h2>
+<h3>雙擊 start.bat 後視窗一閃就關掉，或出現錯誤</h3>
+<p>確認已經<b>完整解壓縮</b>，且 <code>start.bat</code> 旁邊有 <code>python</code>、<code>static</code> 資料夾與 <code>app.py</code>。路徑太深時可能出錯，建議放在磁碟根目錄附近，例如 <code>D:\ebook-reader-portable</code>。</p>
+
+<h3>防毒軟體或 Windows 跳出警告</h3>
+<p>本程式不含自製的執行檔。<code>start.bat</code> 啟動的是 Python 官方發行、具 Python Software Foundation 數位簽章的 <code>python\python.exe</code>。若 Windows 出現「已保護您的電腦」，按「其他資訊」→「仍要執行」。若下載的壓縮檔被標記為來自網路，可在壓縮檔上按右鍵 →「內容」→ 勾選「解除封鎖」後再解壓縮。</p>
+
+<h3>出現「address already in use」或 8000 埠被占用</h3>
+<p>可能是程式已經開著（找找工作列上的黑色視窗），或其他程式占用了 8000 埠。可改用其他埠：在程式資料夾的網址列輸入 <code>cmd</code> 按 Enter，再執行 <code>start.bat --port 8001</code>，並用瀏覽器開 <code>http://127.0.0.1:8001/</code>。</p>
+
+<h3>想用手機或平板閱讀電腦上的書</h3>
+<p>同上方法開啟命令列，執行 <code>start.bat --host 0.0.0.0</code>，再用同一個網路下的手機瀏覽器開 <code>http://電腦的IP:8000/</code>（電腦 IP 可在命令列輸入 <code>ipconfig</code> 查詢）。Windows 防火牆可能會詢問是否允許，選擇允許私人網路。</p>
+
+<h3>TXT 檔開啟後是亂碼</h3>
+<p>程式會自動嘗試 UTF-8、繁體（Big5）、簡體（GB18030）、UTF-16 編碼。若仍是亂碼，請用記事本開啟該檔，「另存新檔」時編碼選「UTF-8」再重新掃描。</p>
+
+<h3>書庫找不到某本書</h3>
+<ul>
+  <li>確認副檔名是 .epub、.kepub、.pdf 或 .txt。</li>
+  <li>書放進資料夾後要按「重新掃描」。</li>
+  <li>若曾經按過「移除」，該書會被隱藏，重新掃描也不會出現；可把檔案改名後再掃描，或用「上傳」加入。</li>
+</ul>
+
+<h3>EPUB 的頁碼為什麼只算本章</h3>
+<p>EPUB 會依視窗大小與字級即時排版，要算出整本書的總頁數必須把每一章都排過一次，太費時，所以底部只顯示本章頁碼；整本書的進度請看工具列右側的百分比。</p>
+</main>
+</body>
+</html>

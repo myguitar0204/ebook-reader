@@ -1,6 +1,7 @@
 """本機電子書閱讀器：掃描資料夾 / 上傳書籍，提供書庫 API 與閱讀頁面。"""
 
 import argparse
+import os
 import posixpath
 import sqlite3
 import sys
@@ -26,7 +27,8 @@ DATA = BASE / "data"
 COVERS = DATA / "covers"
 UPLOADS = BASE / "books"
 DB_PATH = DATA / "library.db"
-DEFAULT_FOLDER = None if FROZEN else r"D:\091\電子書"  # 打包版給別人用，由對方自行設定資料夾
+PORTABLE = FROZEN or os.environ.get("EBOOK_PORTABLE") == "1"  # 可攜版（embeddable Python）由 start.bat 設定
+DEFAULT_FOLDER = None if PORTABLE else r"D:\091\電子書"  # 打包版給別人用，由對方自行設定資料夾
 
 # 副檔名 → 閱讀格式（kepub 是 Kobo 版 epub，可直接用 epub 方式開）
 FORMATS = {".epub": "epub", ".kepub": "epub", ".pdf": "pdf", ".txt": "txt"}

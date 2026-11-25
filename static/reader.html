@@ -168,7 +168,19 @@ async function openEpub(book) {
 
   await rendition.display(book.position || undefined);
   reader = {
-    prev: () => rendition.prev(), next: () => rendition.next(),
+    prev: () => rendition.prev(),
+    // 顯示縮放非整數倍（如 143.5%）時，捲動位置只能停在實體像素上，章尾差不到 1px 捲不到底，
+    // epub.js 便以為還沒到章尾而原地捲動、永遠翻不到下一章；位置沒動就直接跳下一章
+    next: async () => {
+      const c = $("#epub .epub-container"), scroll = () => [c.scrollTop, c.scrollLeft];
+      const index = rendition.currentLocation()?.start?.index, [t, l] = scroll();
+      await rendition.next();
+      const [t2, l2] = scroll();
+      if (rendition.currentLocation()?.start?.index === index && Math.abs(t2 - t) < 1 && Math.abs(l2 - l) < 1) {
+        const sec = ebook.spine.get(index)?.next();
+        if (sec) await rendition.display(sec.href);
+      }
+    },
     page: $("#epub"),
     atEdge: forward => !!rendition.currentLocation()?.[forward ? "atEnd" : "atStart"],
   };
